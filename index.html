@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Italian Verb Quiz</title>
+</head>
+<body>
+    <h1>Italian Verb Conjugation Quiz</h1>
+    <div>
+        <label>Select Groups:</label><br>
+        <input type="checkbox" id="group-ARE" value="ARE" checked> ARE<br>
+        <input type="checkbox" id="group-ERE" value="ERE"> ERE<br>
+        <input type="checkbox" id="group-IRE" value="IRE"> IRE<br>
+        <input type="checkbox" id="group-ONREGELMATIG" value="ONREGELMATIG" checked> ONREGELMATIG<br>
+    </div>
+    <div>
+        <label>Select Tenses:</label><br>
+        <input type="checkbox" id="tense-presente" value="presente" checked> Presente<br>
+        <input type="checkbox" id="tense-imperfetto" value="imperfetto"> Imperfetto<br>
+        <input type="checkbox" id="tense-futuro" value="futuro"> Futuro<br>
+        <input type="checkbox" id="tense-passato_remoto" value="passato_remoto"> Passato Remoto<br>
+        <input type="checkbox" id="tense-trapassato_remoto" value="trapassato_remoto"> Trapassato Remoto<br>
+        <input type="checkbox" id="tense-passato_prossimo" value="passato_prossimo"> Passato Prossimo<br>
+        <input type="checkbox" id="tense-trapassato_prossimo" value="trapassato_prossimo"> Trapassato Prossimo<br>
+        <input type="checkbox" id="tense-futuro_anteriore" value="futuro_anteriore"> Futuro Anteriore<br>
+    </div>
+    <button id="getQuiz">Get Quiz Question</button>
+    <div id="question"></div>
+    <input type="text" id="answer" placeholder="Your answer">
+    <button id="submit">Submit Answer</button>
+    <div id="result"></div>
+
+    <script>
+        const getQuizBtn = document.getElementById('getQuiz');
+        const questionDiv = document.getElementById('question');
+        const answerInput = document.getElementById('answer');
+        const submitBtn = document.getElementById('submit');
+        const resultDiv = document.getElementById('result');
+
+        let currentQuiz = null;
+
+        getQuizBtn.addEventListener('click', async () => {
+            const groups = Array.from(document.querySelectorAll('input[id^="group-"]:checked')).map(cb => cb.value).join(',');
+            const tenses = Array.from(document.querySelectorAll('input[id^="tense-"]:checked')).map(cb => cb.value).join(',');
+            const response = await fetch(`/quiz?groups=${groups}&tenses=${tenses}`);
+            const quiz = await response.json();
+            currentQuiz = quiz;
+            questionDiv.innerHTML = `
+                <p>Verb: ${quiz.verb}</p>
+                <p>Person: ${quiz.person}</p>
+                <p>Tense: ${quiz.tense}</p>
+                <p>Group: ${quiz.group}</p>
+            `;
+            answerInput.value = '';
+            resultDiv.innerHTML = '';
+        });
+
+        submitBtn.addEventListener('click', async () => {
+            if (!currentQuiz) return;
+            const response = await fetch('/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    verb: currentQuiz.verb,
+                    person: currentQuiz.person,
+                    tense: currentQuiz.tense,
+                    answer: answerInput.value
+                })
+            });
+            const result = await response.json();
+            resultDiv.innerHTML = result.correct ? 'Correct!' : `Wrong. Correct answer: ${result.correct_answer}`;
+        });
+
+        answerInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                submitBtn.click();
+            }
+        });
+    </script>
+</body>
+</html>

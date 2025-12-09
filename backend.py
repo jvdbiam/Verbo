@@ -1,0 +1,187 @@
+import random
+import json
+import os
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from verbecc import CompleteConjugator, LangCodeISO639_1 as Lang, Tenses
+from deep_translator import GoogleTranslator
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
+# 1. SETUP: Initialiseer de verbecc engine voor Italiaans
+cg = CompleteConjugator(Lang.it)
+translator = GoogleTranslator(source='it', target='nl')
+
+# 2. DATA: Load verbs from external JSON file if it exists, otherwise use default
+VERB_DB_FILE = "verbs.json"
+
+def load_verb_database():
+    if os.path.exists(VERB_DB_FILE):
+        try:
+            with open(VERB_DB_FILE, 'r', encoding='utf-8') as f:
+                print(f"Loading verbs from {VERB_DB_FILE}...")
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading {VERB_DB_FILE}: {e}")
+    
+    print("Using default verb list.")
+    return {
+        "ARE": ["parlare", "mangiare", "amare", "cantare", "lavorare", "studiare", "giocare", "camminare"],
+        "ERE": ["credere", "vedere", "temere", "leggere", "scrivere", "vivere", "mettere", "prendere"],
+        "IRE": ["dormire", "partire", "sentire", "capire", "finire", "preferire", "pulire", "aprire"],
+        "ONREGELMATIG": ["essere", "avere", "andare", "fare", "venire", "dire", "potere", "volere", "dovere", "sapere", "stare", "uscire"]
+    }
+
+verb_database = load_verb_database()
+
+# Flattened list for reverse search
+all_verbs = [v for sublist in verb_database.values() for v in sublist]
+
+
+# 3. CONFIGURATIE: De instellingen van de gebruiker (dit komt later uit je app interface)
+# Opties: "ARE", "ERE", "IRE", "ONREGELMATIG" (of allemaal)
+gekozen_groepen = ["ARE", "ONREGELMATIG"] 
+
+# Opties: "presente", "imperfetto", "futuro_semplice", "passato_remoto", etc.
+gekozen_tijd = Tenses.it.Presente 
+
+# Mapping van tense strings naar Tenses enum
+tense_map = {
+    "presente": Tenses.it.Presente,
+    "imperfetto": Tenses.it.Imperfetto,
+    "futuro": Tenses.it.Futuro,
+    "passato_remoto": Tenses.it.PassatoRemoto,
+    "trapassato_remoto": Tenses.it.TrapassatoRemoto,
+    "passato_prossimo": Tenses.it.PassatoProssimo,
+    "trapassato_prossimo": Tenses.it.TrapassatoProssimo,
+    "futuro_anteriore": Tenses.it.FuturoAnteriore,
+} 
+
+# Mapping van index (0-6) naar persoon
+personen = ["io", "tu", "lui", "lei", "noi", "voi", "loro"]
+
+class QuizRequest(BaseModel):
+    verb: str
+    person: str
+    tense: str
+    answer: str
+
+@app.get("/")
+def read_root():
+    return FileResponse("index.html")
+
+@app.get("/quiz")
+def get_quiz(groups: str = "ARE,ONREGELMATIG", tenses: str = "presente"):
+    groups_list = groups.split(',')
+    tenses_list = tenses.split(',')
+    
+    # A. Kies een willekeurige groep uit de voorkeuren van de gebruiker
+    groep = random.choice(groups_list)
+    
+    # B. Kies een willekeurig werkwoord uit die groep
+    werkwoord = random.choice(verb_database[groep])
+    
+    # Kies een willekeurige tense
+    tense_str = random.choice(tenses_list)
+    chosen_tense = tense_map.get(tense_str)
+    if not chosen_tense:
+        raise HTTPException(status_code=400, detail=f"Tense '{tense_str}' not supported")
+    
+    # E. Kies een willekeurige persoon (index 0 t/m 6)
+    persoon_index = random.randint(0, 6)
+    persoon_label = personen[persoon_index]
+    
+    return {
+        "verb": werkwoord,
+        "person": persoon_label,
+        "tense": tense_str,
+        "group": groep
+    }
+
+@app.post("/check")
+def check_answer(request: QuizRequest):
+    chosen_tense = tense_map.get(request.tense)
+    if not chosen_tense:
+        raise HTTPException(status_code=400, detail=f"Tense '{request.tense}' not supported")
+    
+    # Haal de vervoeging op
+    vervoeging = cg.conjugate(request.verb).get_data()
+    try:
+        tijden_lijst = vervoeging['moods']['indicativo'][chosen_tense]
+    except KeyError:
+        raise HTTPException(status_code=400, detail=f"Tense '{request.tense}' not found")
+    
+    # Vind de index van de persoon
+    # Mapping: io=0, tu=1, lui=2, lei=3, noi=4, voi=5, loro=6
+    # Verbecc returns 7 items: io, tu, lui, lei, noi, voi, loro
+    person_map = {
+        "io": 0, "tu": 1, "lui": 2, "lei": 3, 
+        "noi": 4, "voi": 5, "loro": 6
+    }
+    
+    persoon_index = person_map.get(request.person)
+    if persoon_index is None:
+        raise HTTPException(status_code=400, detail=f"Person '{request.person}' not valid")
+    
+    # Note: verbecc returns the full form "io parlo" in 'c' usually, but let's check
+    # Based on debug output: 'c': ['io parlo']
+    # So we need to handle that.
+    
+    raw_answer = tijden_lijst[persoon_index]['c'][0] # e.g. "io parlo"
+    
+    # Extract just the verb part if needed, or handle both
+    # Usually verbecc returns "io parlo", so we can split it.
+    parts = raw_answer.split(' ')
+    if len(parts) > 1:
+        verb_only = parts[-1] # "parlo"
+        full_phrase = raw_answer # "io parlo"
+    else:
+        verb_only = raw_answer
+        full_phrase = raw_answer
+
+    # Check answer (allow both "parlo" and "io parlo")
+    user_ans = request.answer.strip().lower()
+    
+    correct = (user_ans == verb_only.lower()) or (user_ans == full_phrase.lower())
+    
+    return {
+        "correct": correct,
+        "correct_answer": verb_only, # Send back the simple form as the "official" correct answer
+        "your_answer": request.answer
+    }
+
+@app.get("/api/reference/{verb}")
+def get_full_conjugation(verb: str):
+    # Clean the input
+    target_verb = verb.lower().strip()
+
+    try:
+        # Direct conjugation of the requested verb
+        conjugation = cg.conjugate(target_verb).get_data()
+        
+        # Ensure 'verb' is a string (infinitive)
+        if isinstance(conjugation.get('verb'), dict):
+            conjugation['verb'] = conjugation['verb'].get('infinitive', target_verb)
+            
+        # Translation Logic
+        try:
+            # Translate the infinitive to Dutch
+            translation = translator.translate(target_verb)
+            conjugation['translation'] = translation
+        except Exception as e:
+            print(f"Translation error: {e}")
+            conjugation['translation'] = "Vertaling niet beschikbaar"
+            
+        return conjugation
+    except Exception:
+        raise HTTPException(status_code=404, detail="Verb not found or conjugation failed")
