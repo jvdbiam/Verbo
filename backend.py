@@ -213,6 +213,6 @@ def get_full_conjugation(verb: str):
         raise HTTPException(status_code=404, detail="Verb not found or conjugation failed")
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 1000))
     logger.info(f"Starting server on 0.0.0.0:{port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
