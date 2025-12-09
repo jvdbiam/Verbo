@@ -2,12 +2,22 @@ import random
 import json
 import os
 import uvicorn
+import logging
+import sys
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from verbecc import CompleteConjugator, LangCodeISO639_1 as Lang, Tenses
 from deep_translator import GoogleTranslator
+
+# Configure logging to show up in Render logs
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -20,8 +30,22 @@ app.add_middleware(
 )
 
 # 1. SETUP: Initialiseer de verbecc engine voor Italiaans
-cg = CompleteConjugator(Lang.it)
-translator = GoogleTranslator(source='it', target='nl')
+try:
+    logger.info("Initializing Verbecc...")
+    cg = CompleteConjugator(Lang.it)
+    logger.info("Verbecc initialized successfully.")
+except Exception as e:
+    logger.error(f"Failed to initialize Verbecc: {e}")
+    raise e
+
+try:
+    logger.info("Initializing GoogleTranslator...")
+    translator = GoogleTranslator(source='it', target='nl')
+    logger.info("GoogleTranslator initialized successfully.")
+except Exception as e:
+    logger.error(f"Failed to initialize GoogleTranslator: {e}")
+    # Don't raise here, maybe we can survive without translation
+    translator = None
 
 # 2. DATA: Load verbs from external JSON file if it exists, otherwise use default
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -190,4 +214,5 @@ def get_full_conjugation(verb: str):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
+    logger.info(f"Starting server on 0.0.0.0:{port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
