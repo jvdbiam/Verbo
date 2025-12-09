@@ -1,6 +1,7 @@
 import random
 import json
 import os
+import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -23,7 +24,8 @@ cg = CompleteConjugator(Lang.it)
 translator = GoogleTranslator(source='it', target='nl')
 
 # 2. DATA: Load verbs from external JSON file if it exists, otherwise use default
-VERB_DB_FILE = "verbs.json"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+VERB_DB_FILE = os.path.join(BASE_DIR, "verbs.json")
 
 def load_verb_database():
     if os.path.exists(VERB_DB_FILE):
@@ -78,7 +80,7 @@ class QuizRequest(BaseModel):
 
 @app.get("/")
 def read_root():
-    return FileResponse("index.html")
+    return FileResponse(os.path.join(BASE_DIR, "index.html"))
 
 @app.get("/quiz")
 def get_quiz(groups: str = "ARE,ONREGELMATIG", tenses: str = "presente"):
@@ -185,3 +187,7 @@ def get_full_conjugation(verb: str):
         return conjugation
     except Exception:
         raise HTTPException(status_code=404, detail="Verb not found or conjugation failed")
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
