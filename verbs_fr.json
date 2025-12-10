@@ -1,0 +1,6 @@
+{
+    "ER": ["parler", "manger", "aimer", "chanter", "travailler", "étudier", "jouer", "marcher"],
+    "IR": ["finir", "choisir", "dormir", "partir", "sentir", "réussir"],
+    "RE": ["vendre", "attendre", "entendre", "répondre", "perdre"],
+    "ONREGELMATIG": ["être", "avoir", "aller", "faire", "venir", "dire", "pouvoir", "vouloir", "devoir", "savoir", "prendre", "voir"]
+}
