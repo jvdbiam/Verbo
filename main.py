@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from verbecc import CompleteConjugator, LangCodeISO639_1 as Lang, Tenses
 from deep_translator import GoogleTranslator
+from uvicorn.config import LOGGING_CONFIG
 
 # Configure logging to show up in Render logs
 logging.basicConfig(
@@ -18,6 +19,20 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
+
+# Configure Uvicorn logging
+LOGGING_CONFIG["formatters"]["default"] = {
+    "()": "uvicorn.logging.DefaultFormatter",
+    "fmt": "%(asctime)s [%(levelname)s] %(message)s",
+    "datefmt": "%Y-%m-%d %H:%M:%S",
+}
+
+# Set up a custom logging function for Uvicorn
+def configure_uvicorn_logging():
+    logging.config.dictConfig(LOGGING_CONFIG)
+    logger = logging.getLogger("uvicorn")
+    logger.setLevel(logging.INFO)
+    return logger
 
 app = FastAPI()
 
@@ -213,6 +228,9 @@ def get_full_conjugation(verb: str):
         raise HTTPException(status_code=404, detail="Verb not found or conjugation failed")
 
 if __name__ == "__main__":
+    uvicorn_logger = configure_uvicorn_logging()
+    uvicorn_logger.info("Starting Uvicorn server...")
+
     port = int(os.environ.get("PORT", 1000))
     logger.info(f"Starting server on 0.0.0.0:{port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
