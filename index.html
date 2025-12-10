@@ -3,37 +3,236 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Italian Verb Quiz</title>
+    <title>Verbo - Italian Verb Quiz</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --border-radius: 8px;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.9em;
+            background: #f8f9fa;
+            padding: 5px 10px;
+            border-radius: 20px;
+            border: 1px solid #ddd;
+            transition: all 0.2s;
+        }
+
+        .checkbox-label:hover {
+            background: #e9ecef;
+        }
+
+        .checkbox-label input {
+            margin-right: 8px;
+        }
+
+        .checkbox-label input:checked + span {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 1em;
+            width: 100%;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #34495e;
+        }
+
+        button#submit {
+            background-color: var(--accent-color);
+            margin-top: 10px;
+        }
+
+        button#submit:hover {
+            background-color: #c0392b;
+        }
+
+        .quiz-area {
+            display: none; /* Hidden initially */
+            text-align: center;
+        }
+
+        .quiz-area.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        .verb-display {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 10px 0;
+        }
+
+        .quiz-info {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .quiz-info span {
+            background: #eee;
+            padding: 4px 12px;
+            border-radius: 15px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 1.1em;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 1.1em;
+            min-height: 1.5em;
+        }
+
+        .correct { color: #27ae60; }
+        .incorrect { color: #c0392b; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </head>
 <body>
-    <h1>Italian Verb Conjugation Quiz</h1>
-    <div>
-        <label>Select Groups:</label><br>
-        <input type="checkbox" id="group-ARE" value="ARE" checked> ARE<br>
-        <input type="checkbox" id="group-ERE" value="ERE"> ERE<br>
-        <input type="checkbox" id="group-IRE" value="IRE"> IRE<br>
-        <input type="checkbox" id="group-ONREGELMATIG" value="ONREGELMATIG" checked> ONREGELMATIG<br>
+    <div class="container">
+        <header>
+            <h1>Verbo</h1>
+            <p>Master Italian Verb Conjugations</p>
+        </header>
+
+        <div class="card">
+            <div class="section-title">Configuration</div>
+            
+            <p style="margin-bottom: 8px; font-size: 0.9em; color: #666;">Verb Groups</p>
+            <div class="checkbox-group">
+                <label class="checkbox-label"><input type="checkbox" id="group-ARE" value="ARE" checked> <span>-ARE</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="group-ERE" value="ERE"> <span>-ERE</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="group-IRE" value="IRE"> <span>-IRE</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="group-ONREGELMATIG" value="ONREGELMATIG" checked> <span>Irregular</span></label>
+            </div>
+
+            <p style="margin-bottom: 8px; font-size: 0.9em; color: #666;">Tenses</p>
+            <div class="checkbox-group">
+                <label class="checkbox-label"><input type="checkbox" id="tense-presente" value="presente" checked> <span>Presente</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="tense-imperfetto" value="imperfetto"> <span>Imperfetto</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="tense-futuro" value="futuro"> <span>Futuro</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="tense-passato_remoto" value="passato_remoto"> <span>Passato Remoto</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="tense-trapassato_remoto" value="trapassato_remoto"> <span>Trapassato Remoto</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="tense-passato_prossimo" value="passato_prossimo"> <span>Passato Prossimo</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="tense-trapassato_prossimo" value="trapassato_prossimo"> <span>Trapassato Prossimo</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="tense-futuro_anteriore" value="futuro_anteriore"> <span>Futuro Anteriore</span></label>
+            </div>
+            
+            <button id="getQuiz">Start New Quiz</button>
+        </div>
+
+        <div id="quiz-card" class="card quiz-area">
+            <div class="verb-display" id="verb-display"></div>
+            <div class="quiz-info">
+                <span id="person-display"></span>
+                <span id="tense-display"></span>
+            </div>
+            
+            <input type="text" id="answer" placeholder="Type conjugation here..." autocomplete="off">
+            <button id="submit">Check Answer</button>
+            <div id="result"></div>
+        </div>
     </div>
-    <div>
-        <label>Select Tenses:</label><br>
-        <input type="checkbox" id="tense-presente" value="presente" checked> Presente<br>
-        <input type="checkbox" id="tense-imperfetto" value="imperfetto"> Imperfetto<br>
-        <input type="checkbox" id="tense-futuro" value="futuro"> Futuro<br>
-        <input type="checkbox" id="tense-passato_remoto" value="passato_remoto"> Passato Remoto<br>
-        <input type="checkbox" id="tense-trapassato_remoto" value="trapassato_remoto"> Trapassato Remoto<br>
-        <input type="checkbox" id="tense-passato_prossimo" value="passato_prossimo"> Passato Prossimo<br>
-        <input type="checkbox" id="tense-trapassato_prossimo" value="trapassato_prossimo"> Trapassato Prossimo<br>
-        <input type="checkbox" id="tense-futuro_anteriore" value="futuro_anteriore"> Futuro Anteriore<br>
-    </div>
-    <button id="getQuiz">Get Quiz Question</button>
-    <div id="question"></div>
-    <input type="text" id="answer" placeholder="Your answer">
-    <button id="submit">Submit Answer</button>
-    <div id="result"></div>
 
     <script>
         const getQuizBtn = document.getElementById('getQuiz');
-        const questionDiv = document.getElementById('question');
+        const quizCard = document.getElementById('quiz-card');
+        const verbDisplay = document.getElementById('verb-display');
+        const personDisplay = document.getElementById('person-display');
+        const tenseDisplay = document.getElementById('tense-display');
         const answerInput = document.getElementById('answer');
         const submitBtn = document.getElementById('submit');
         const resultDiv = document.getElementById('result');
@@ -43,33 +242,79 @@
         getQuizBtn.addEventListener('click', async () => {
             const groups = Array.from(document.querySelectorAll('input[id^="group-"]:checked')).map(cb => cb.value).join(',');
             const tenses = Array.from(document.querySelectorAll('input[id^="tense-"]:checked')).map(cb => cb.value).join(',');
-            const response = await fetch(`/quiz?groups=${groups}&tenses=${tenses}`);
-            const quiz = await response.json();
-            currentQuiz = quiz;
-            questionDiv.innerHTML = `
-                <p>Verb: ${quiz.verb}</p>
-                <p>Person: ${quiz.person}</p>
-                <p>Tense: ${quiz.tense}</p>
-                <p>Group: ${quiz.group}</p>
-            `;
-            answerInput.value = '';
-            resultDiv.innerHTML = '';
+            
+            if (!groups || !tenses) {
+                alert("Please select at least one group and one tense.");
+                return;
+            }
+
+            getQuizBtn.disabled = true;
+            getQuizBtn.textContent = "Loading...";
+
+            try {
+                const response = await fetch(`/quiz?groups=${groups}&tenses=${tenses}`);
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const quiz = await response.json();
+                currentQuiz = quiz;
+                
+                // Update UI
+                verbDisplay.textContent = quiz.verb;
+                personDisplay.textContent = quiz.person;
+                tenseDisplay.textContent = quiz.tense.replace('_', ' ');
+                
+                answerInput.value = '';
+                resultDiv.innerHTML = '';
+                resultDiv.className = '';
+                
+                quizCard.classList.add('active');
+                answerInput.focus();
+                getQuizBtn.textContent = "Next Question";
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to load quiz. Please try again.');
+            } finally {
+                getQuizBtn.disabled = false;
+            }
         });
 
         submitBtn.addEventListener('click', async () => {
             if (!currentQuiz) return;
-            const response = await fetch('/check', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    verb: currentQuiz.verb,
-                    person: currentQuiz.person,
-                    tense: currentQuiz.tense,
-                    answer: answerInput.value
-                })
-            });
-            const result = await response.json();
-            resultDiv.innerHTML = result.correct ? 'Correct!' : `Wrong. Correct answer: ${result.correct_answer}`;
+            
+            const userAns = answerInput.value.trim();
+            if (!userAns) return;
+
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch('/check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        verb: currentQuiz.verb,
+                        person: currentQuiz.person,
+                        tense: currentQuiz.tense,
+                        answer: userAns
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.correct) {
+                    resultDiv.innerHTML = 'Correct! Ben fatto! 🎉';
+                    resultDiv.className = 'correct';
+                    // Optional: Auto load next question after delay
+                    // setTimeout(() => getQuizBtn.click(), 1500);
+                } else {
+                    resultDiv.innerHTML = `Incorrect. The answer was <strong>${result.correct_answer}</strong>`;
+                    resultDiv.className = 'incorrect';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.textContent = 'Error checking answer.';
+            } finally {
+                submitBtn.disabled = false;
+            }
         });
 
         answerInput.addEventListener('keydown', (event) => {
