@@ -46,14 +46,14 @@ verb_database = load_verb_database()
 # 3. CONFIGURATIE
 # Mapping van tense strings naar Tenses enum (Frans)
 tense_map = {
-    "presente": Tenses.fr.Présent,
-    "imperfetto": Tenses.fr.Imparfait,
-    "futuro": Tenses.fr.FuturSimple,
-    "passato_remoto": Tenses.fr.PasséSimple,
-    "trapassato_remoto": Tenses.fr.PasséAntérieur,
-    "passato_prossimo": Tenses.fr.PasséComposé,
-    "trapassato_prossimo": Tenses.fr.PlusQueParfait,
-    "futuro_anteriore": Tenses.fr.FuturAntérieur,
+    "présent": Tenses.fr.Présent,
+    "imparfait": Tenses.fr.Imparfait,
+    "futur_simple": Tenses.fr.FuturSimple,
+    "passé_simple": Tenses.fr.PasséSimple,
+    "passé_antérieur": Tenses.fr.PasséAntérieur,
+    "passé_composé": Tenses.fr.PasséComposé,
+    "plus_que_parfait": Tenses.fr.PlusQueParfait,
+    "futur_antérieur": Tenses.fr.FuturAntérieur,
 } 
 
 # Mapping van index naar persoon
