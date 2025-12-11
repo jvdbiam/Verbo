@@ -174,30 +174,29 @@ def check_answer(request: QuizRequest):
     if persoon_index is None:
         raise HTTPException(status_code=400, detail=f"Person '{request.person}' not valid")
     
-    # Note: verbecc returns the full form "io parlo" in 'c' usually, but let's check
-    # Based on debug output: 'c': ['io parlo']
-    # So we need to handle that.
+    # Get the conjugated form from verbecc
+    # verbecc returns forms like "io parlo" (simple) or "io ho parlato" (compound)
+    raw_answer = tijden_lijst[persoon_index]['c'][0]
     
-    raw_answer = tijden_lijst[persoon_index]['c'][0] # e.g. "io parlo"
-    
-    # Extract just the verb part if needed, or handle both
-    # Usually verbecc returns "io parlo", so we can split it.
-    parts = raw_answer.split(' ')
+    # Extract the verb part without the pronoun
+    # For simple tenses: "io parlo" -> "parlo"
+    # For compound tenses: "io ho parlato" -> "ho parlato"
+    parts = raw_answer.split(' ', 1)  # Split only on the first space to separate pronoun
     if len(parts) > 1:
-        verb_only = parts[-1] # "parlo"
-        full_phrase = raw_answer # "io parlo"
+        verb_only = parts[1]  # Everything after the pronoun
+        full_phrase = raw_answer
     else:
         verb_only = raw_answer
         full_phrase = raw_answer
 
-    # Check answer (allow both "parlo" and "io parlo")
+    # Check answer (allow both with and without pronoun)
     user_ans = request.answer.strip().lower()
     
     correct = (user_ans == verb_only.lower()) or (user_ans == full_phrase.lower())
     
     return {
         "correct": correct,
-        "correct_answer": verb_only, # Send back the simple form as the "official" correct answer
+        "correct_answer": verb_only,  # Return the form without pronoun
         "your_answer": request.answer
     }
 
