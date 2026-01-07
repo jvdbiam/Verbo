@@ -185,21 +185,21 @@
     <div class="container">
         <header>
             <h1>Verbo</h1>
-            <p>Master Italian Verb Conjugations</p>
+            <p>Leer Italiaanse werkwoorden</p>
         </header>
 
         <div class="card">
-            <div class="section-title">Configuration</div>
+            <div class="section-title">Configuratie</div>
             
-            <p style="margin-bottom: 8px; font-size: 0.9em; color: #666;">Verb Groups</p>
+            <p style="margin-bottom: 8px; font-size: 0.9em; color: #666;">Werkwoordgroepen</p>
             <div class="checkbox-group">
                 <label class="checkbox-label"><input type="checkbox" id="group-ARE" value="ARE" checked> <span>-ARE</span></label>
                 <label class="checkbox-label"><input type="checkbox" id="group-ERE" value="ERE"> <span>-ERE</span></label>
                 <label class="checkbox-label"><input type="checkbox" id="group-IRE" value="IRE"> <span>-IRE</span></label>
-                <label class="checkbox-label"><input type="checkbox" id="group-ONREGELMATIG" value="ONREGELMATIG" checked> <span>Irregular</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="group-ONREGELMATIG" value="ONREGELMATIG" checked> <span>irregolari</span></label>
             </div>
 
-            <p style="margin-bottom: 8px; font-size: 0.9em; color: #666;">Tenses</p>
+            <p style="margin-bottom: 8px; font-size: 0.9em; color: #666;">Tijden</p>
             <div class="checkbox-group">
                 <label class="checkbox-label"><input type="checkbox" id="tense-presente" value="presente" checked> <span>Presente</span></label>
                 <label class="checkbox-label"><input type="checkbox" id="tense-imperfetto" value="imperfetto"> <span>Imperfetto</span></label>
@@ -211,7 +211,7 @@
                 <label class="checkbox-label"><input type="checkbox" id="tense-futuro_anteriore" value="futuro_anteriore"> <span>Futuro Anteriore</span></label>
             </div>
             
-            <button id="getQuiz">Start New Quiz</button>
+            <button id="getQuiz">Start Nieuwe Quiz</button>
         </div>
 
         <div id="quiz-card" class="card quiz-area">
@@ -221,8 +221,8 @@
                 <span id="tense-display"></span>
             </div>
             
-            <input type="text" id="answer" placeholder="Type conjugation here..." autocomplete="off">
-            <button id="submit">Check Answer</button>
+            <input type="text" id="answer" placeholder="Typ je antwoord hier" autocomplete="off">
+            <button id="submit">Controleer antwoord</button>
             <div id="result"></div>
         </div>
     </div>
@@ -244,12 +244,12 @@
             const tenses = Array.from(document.querySelectorAll('input[id^="tense-"]:checked')).map(cb => cb.value).join(',');
             
             if (!groups || !tenses) {
-                alert("Please select at least one group and one tense.");
+                alert("Selecteer ten minste één werkwoordgroep en één tijd.");
                 return;
             }
 
             getQuizBtn.disabled = true;
-            getQuizBtn.textContent = "Loading...";
+            getQuizBtn.textContent = "laden...";
 
             try {
                 const response = await fetch(`/quiz?groups=${groups}&tenses=${tenses}`);
@@ -269,10 +269,10 @@
                 
                 quizCard.classList.add('active');
                 answerInput.focus();
-                getQuizBtn.textContent = "Next Question";
+                getQuizBtn.textContent = "Volgende Vraag";
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to load quiz. Please try again.');
+                alert('Fout bij het ophalen van de quiz.');
             } finally {
                 getQuizBtn.disabled = false;
             }
@@ -306,12 +306,12 @@
                     // Optional: Auto load next question after delay
                     // setTimeout(() => getQuizBtn.click(), 1500);
                 } else {
-                    resultDiv.innerHTML = `Incorrect. The answer was <strong>${result.correct_answer}</strong>`;
+                    resultDiv.innerHTML = `Incorrect. Het antwoord was: <strong>${result.correct_answer}</strong>`;
                     resultDiv.className = 'incorrect';
                 }
             } catch (error) {
                 console.error('Error:', error);
-                resultDiv.textContent = 'Error checking answer.';
+                resultDiv.textContent = 'Fout bij het controleren van het antwoord.';
             } finally {
                 submitBtn.disabled = false;
             }
