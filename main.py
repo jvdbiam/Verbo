@@ -2,102 +2,59 @@ import random
 import json
 import os
 import uvicorn
-import logging
-import sys
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from verbecc import CompleteConjugator, LangCodeISO639_1 as Lang, Tenses
 from deep_translator import GoogleTranslator
-from uvicorn.config import LOGGING_CONFIG
-
-# Configure logging to show up in Render logs
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
-logger = logging.getLogger(__name__)
-
-# Configure Uvicorn logging
-LOGGING_CONFIG["formatters"]["default"] = {
-    "()": "uvicorn.logging.DefaultFormatter",
-    "fmt": "%(asctime)s [%(levelname)s] %(message)s",
-    "datefmt": "%Y-%m-%d %H:%M:%S",
-}
-
-# Set up a custom logging function for Uvicorn
-def configure_uvicorn_logging():
-    logging.config.dictConfig(LOGGING_CONFIG)
-    logger = logging.getLogger("uvicorn")
-    logger.setLevel(logging.INFO)
-    return logger
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],  # Staat alle origins toe
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],  # Staat alle methodes toe
+    allow_headers=["*"],  # Staat alle headers toe
 )
 
 # 1. SETUP: Initialiseer de verbecc engine voor Italiaans
 try:
-    logger.info("Initializing Verbecc...")
     cg = CompleteConjugator(Lang.it)
-    logger.info("Verbecc initialized successfully.")
 except Exception as e:
-    logger.error(f"Failed to initialize Verbecc: {e}")
-    raise e
+    raise RuntimeError(f"Verbecc initialisatie mislukt: {e}")
 
+# Initialiseer vertaler (optioneel, API werkt ook zonder)
 try:
-    logger.info("Initializing GoogleTranslator...")
-    translator = GoogleTranslator(source='it', target='nl')
-    logger.info("GoogleTranslator initialized successfully.")
-except Exception as e:
-    logger.error(f"Failed to initialize GoogleTranslator: {e}")
-    # Don't raise here, maybe we can survive without translation
-    translator = None
+    vertaler = GoogleTranslator(source='it', target='nl')
+except Exception:
+    vertaler = None
 
-# 2. DATA: Load verbs from external JSON file if it exists, otherwise use default
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-VERB_DB_FILE = os.path.join(BASE_DIR, "verbs.json")
+# 2. DATA: Laad werkwoorden database
+BASIS_MAP = os.path.dirname(os.path.abspath(__file__))
+WERKWOORDEN_DB_BESTAND = os.path.join(BASIS_MAP, "verbs.json")
 
-def load_verb_database():
-    if os.path.exists(VERB_DB_FILE):
+STANDAARD_WERKWOORDEN = {
+    "ARE": ["parlare", "mangiare", "amare", "cantare", "lavorare", "studiare", "giocare", "camminare"],
+    "ERE": ["credere", "vedere", "temere", "leggere", "scrivere", "vivere", "mettere", "prendere"],
+    "IRE": ["dormire", "partire", "sentire", "capire", "finire", "preferire", "pulire", "aprire"],
+    "ONREGELMATIG": ["essere", "avere", "andare", "fare", "venire", "dire", "potere", "volere", "dovere", "sapere", "stare", "uscire"]
+}
+
+def laad_werkwoorden_database():
+    if os.path.exists(WERKWOORDEN_DB_BESTAND):
         try:
-            with open(VERB_DB_FILE, 'r', encoding='utf-8') as f:
-                print(f"Loading verbs from {VERB_DB_FILE}...")
+            with open(WERKWOORDEN_DB_BESTAND, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except Exception as e:
-            print(f"Error loading {VERB_DB_FILE}: {e}")
-    
-    print("Using default verb list.")
-    return {
-        "ARE": ["parlare", "mangiare", "amare", "cantare", "lavorare", "studiare", "giocare", "camminare"],
-        "ERE": ["credere", "vedere", "temere", "leggere", "scrivere", "vivere", "mettere", "prendere"],
-        "IRE": ["dormire", "partire", "sentire", "capire", "finire", "preferire", "pulire", "aprire"],
-        "ONREGELMATIG": ["essere", "avere", "andare", "fare", "venire", "dire", "potere", "volere", "dovere", "sapere", "stare", "uscire"]
-    }
+        except Exception:
+            pass
+    return STANDAARD_WERKWOORDEN
 
-verb_database = load_verb_database()
+werkwoorden_database = laad_werkwoorden_database()
 
-# Flattened list for reverse search
-all_verbs = [v for sublist in verb_database.values() for v in sublist]
-
-
-# 3. CONFIGURATIE: De instellingen van de gebruiker (dit komt later uit je app interface)
-# Opties: "ARE", "ERE", "IRE", "ONREGELMATIG" (of allemaal)
-gekozen_groepen = ["ARE", "ONREGELMATIG"] 
-
-# Opties: "presente", "imperfetto", "futuro_semplice", "passato_remoto", etc.
-gekozen_tijd = Tenses.it.Presente 
-
-# Mapping van tense strings naar Tenses enum
-tense_map = {
+# 3. CONFIGURATIE: Koppeling van tijd strings naar Tenses enum
+tijden_koppeling = {
     "presente": Tenses.it.Presente,
     "imperfetto": Tenses.it.Imperfetto,
     "futuro": Tenses.it.Futuro,
@@ -108,35 +65,35 @@ tense_map = {
     "futuro_anteriore": Tenses.it.FuturoAnteriore,
 } 
 
-# Mapping van index (0-6) naar persoon
+# Koppeling van index (0-6) naar persoon
 personen = ["io", "tu", "lui", "lei", "noi", "voi", "loro"]
 
-class QuizRequest(BaseModel):
+class QuizVerzoek(BaseModel):
     verb: str
     person: str
     tense: str
     answer: str
 
 @app.get("/")
-def read_root():
-    return FileResponse(os.path.join(BASE_DIR, "index.html"))
+def lees_root():
+    return FileResponse(os.path.join(BASIS_MAP, "index.html"))
 
 @app.get("/quiz")
-def get_quiz(groups: str = "ARE,ONREGELMATIG", tenses: str = "presente"):
-    groups_list = groups.split(',')
-    tenses_list = tenses.split(',')
+def haal_quiz_op(groups: str = "ARE,ONREGELMATIG", tenses: str = "presente"):
+    groepen_lijst = groups.split(',')
+    tijden_lijst = tenses.split(',')
     
     # A. Kies een willekeurige groep uit de voorkeuren van de gebruiker
-    groep = random.choice(groups_list)
+    groep = random.choice(groepen_lijst)
     
     # B. Kies een willekeurig werkwoord uit die groep
-    werkwoord = random.choice(verb_database[groep])
+    werkwoord = random.choice(werkwoorden_database[groep])
     
-    # Kies een willekeurige tense
-    tense_str = random.choice(tenses_list)
-    chosen_tense = tense_map.get(tense_str)
-    if not chosen_tense:
-        raise HTTPException(status_code=400, detail=f"Tense '{tense_str}' not supported")
+    # Kies een willekeurige tijd
+    tijd_str = random.choice(tijden_lijst)
+    gekozen_tijd_enum = tijden_koppeling.get(tijd_str)
+    if not gekozen_tijd_enum:
+        raise HTTPException(status_code=400, detail=f"Tijd '{tijd_str}' wordt niet ondersteund")
     
     # E. Kies een willekeurige persoon (index 0 t/m 6)
     persoon_index = random.randint(0, 6)
@@ -145,91 +102,87 @@ def get_quiz(groups: str = "ARE,ONREGELMATIG", tenses: str = "presente"):
     return {
         "verb": werkwoord,
         "person": persoon_label,
-        "tense": tense_str,
+        "tense": tijd_str,
         "group": groep
     }
 
 @app.post("/check")
-def check_answer(request: QuizRequest):
-    chosen_tense = tense_map.get(request.tense)
-    if not chosen_tense:
-        raise HTTPException(status_code=400, detail=f"Tense '{request.tense}' not supported")
+def controleer_antwoord(request: QuizVerzoek):
+    gekozen_tijd_enum = tijden_koppeling.get(request.tense)
+    if not gekozen_tijd_enum:
+        raise HTTPException(status_code=400, detail=f"Tijd '{request.tense}' wordt niet ondersteund")
     
     # Haal de vervoeging op
     vervoeging = cg.conjugate(request.verb).get_data()
     try:
-        tijden_lijst = vervoeging['moods']['indicativo'][chosen_tense]
+        vervoegingen_lijst = vervoeging['moods']['indicativo'][gekozen_tijd_enum]
     except KeyError:
-        raise HTTPException(status_code=400, detail=f"Tense '{request.tense}' not found")
+        raise HTTPException(status_code=400, detail=f"Tijd '{request.tense}' niet gevonden")
     
     # Vind de index van de persoon
-    # Mapping: io=0, tu=1, lui=2, lei=3, noi=4, voi=5, loro=6
-    # Verbecc returns 7 items: io, tu, lui, lei, noi, voi, loro
-    person_map = {
+    # Koppeling: io=0, tu=1, lui=2, lei=3, noi=4, voi=5, loro=6
+    # Verbecc geeft 7 items terug: io, tu, lui, lei, noi, voi, loro
+    persoon_koppeling = {
         "io": 0, "tu": 1, "lui": 2, "lei": 3, 
         "noi": 4, "voi": 5, "loro": 6
     }
     
-    persoon_index = person_map.get(request.person)
+    persoon_index = persoon_koppeling.get(request.person)
     if persoon_index is None:
-        raise HTTPException(status_code=400, detail=f"Person '{request.person}' not valid")
+        raise HTTPException(status_code=400, detail=f"Persoon '{request.person}' is niet geldig")
     
-    # Get the conjugated form from verbecc
-    # verbecc returns forms like "io parlo" (simple) or "io ho parlato" (compound)
-    raw_answer = tijden_lijst[persoon_index]['c'][0]
+    # Haal de vervoegde vorm op van verbecc
+    # verbecc geeft vormen terug zoals "io parlo" (eenvoudig) of "io ho parlato" (samengesteld)
+    ruw_antwoord = vervoegingen_lijst[persoon_index]['c'][0]
     
-    # Extract the verb part without the pronoun
-    # For simple tenses: "io parlo" -> "parlo"
-    # For compound tenses: "io ho parlato" -> "ho parlato"
-    parts = raw_answer.split(' ', 1)  # Split only on the first space to separate pronoun
-    if len(parts) > 1:
-        verb_only = parts[1]  # Everything after the pronoun
-        full_phrase = raw_answer
+    # Extraheer het werkwoorddeel zonder het voornaamwoord
+    # Voor eenvoudige tijden: "io parlo" -> "parlo"
+    # Voor samengestelde tijden: "io ho parlato" -> "ho parlato"
+    delen = ruw_antwoord.split(' ', 1)  # Splits alleen bij de eerste spatie om voornaamwoord te scheiden
+    if len(delen) > 1:
+        alleen_werkwoord = delen[1]  # Alles na het voornaamwoord
+        volledige_zin = ruw_antwoord
     else:
-        verb_only = raw_answer
-        full_phrase = raw_answer
+        alleen_werkwoord = ruw_antwoord
+        volledige_zin = ruw_antwoord
 
-    # Check answer (allow both with and without pronoun)
-    user_ans = request.answer.strip().lower()
+    # Controleer antwoord (sta beide toe met en zonder voornaamwoord)
+    gebruiker_antwoord = request.answer.strip().lower()
     
-    correct = (user_ans == verb_only.lower()) or (user_ans == full_phrase.lower())
+    correct = (gebruiker_antwoord == alleen_werkwoord.lower()) or (gebruiker_antwoord == volledige_zin.lower())
     
     return {
         "correct": correct,
-        "correct_answer": verb_only,  # Return the form without pronoun
+        "correct_answer": alleen_werkwoord,  # Geef de vorm zonder voornaamwoord terug
         "your_answer": request.answer
     }
 
 @app.get("/api/reference/{verb}")
-def get_full_conjugation(verb: str):
-    # Clean the input
-    target_verb = verb.lower().strip()
+def haal_volledige_vervoeging_op(verb: str):
+    # Maak de invoer schoon
+    doel_werkwoord = verb.lower().strip()
 
     try:
-        # Direct conjugation of the requested verb
-        conjugation = cg.conjugate(target_verb).get_data()
+        # Directe vervoeging van het gevraagde werkwoord
+        vervoeging = cg.conjugate(doel_werkwoord).get_data()
         
-        # Ensure 'verb' is a string (infinitive)
-        if isinstance(conjugation.get('verb'), dict):
-            conjugation['verb'] = conjugation['verb'].get('infinitive', target_verb)
+        # Zorg ervoor dat 'verb' een string is (infinitief)
+        if isinstance(vervoeging.get('verb'), dict):
+            vervoeging['verb'] = vervoeging['verb'].get('infinitive', doel_werkwoord)
             
-        # Translation Logic
-        try:
-            # Translate the infinitive to Dutch
-            translation = translator.translate(target_verb)
-            conjugation['translation'] = translation
-        except Exception as e:
-            print(f"Translation error: {e}")
-            conjugation['translation'] = "Vertaling niet beschikbaar"
+        # Vertaal de infinitief naar het Nederlands
+        if vertaler:
+            try:
+                vervoeging['translation'] = vertaler.translate(doel_werkwoord)
+            except Exception:
+                vervoeging['translation'] = "Vertaling niet beschikbaar"
+        else:
+            vervoeging['translation'] = "Vertaling niet beschikbaar"
             
-        return conjugation
+        return vervoeging
     except Exception:
-        raise HTTPException(status_code=404, detail="Verb not found or conjugation failed")
+        raise HTTPException(status_code=404, detail="Werkwoord niet gevonden of vervoeging mislukt")
 
 if __name__ == "__main__":
-    uvicorn_logger = configure_uvicorn_logging()
-    uvicorn_logger.info("Starting Uvicorn server...")
-
-    port = int(os.environ.get("PORT", 1000))
-    logger.info(f"Starting server on 0.0.0.0:{port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    poort = int(os.environ.get("PORT", 1000))
+    uvicorn.run(app, host="0.0.0.0", port=poort)
